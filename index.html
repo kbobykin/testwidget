@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tango (domain B) — Zay onboarding embed test</title>
+  <!--
+    Domain-B simulator for testing the Zay/Tango onboarding widget cross-origin.
+    Host this on GitHub Pages (https://<user>.github.io/...) so it is a different
+    registrable domain than the iframe's origin (domain A, a *.trycloudflare.com
+    tunnel) — that makes the browser treat the embed as genuinely cross-site, the
+    way Tango's real page will.
+
+    Usage:  parent.html?host=https://<rand>.trycloudflare.com
+    (the tunnel host changes each run; pass it via ?host= or the input below).
+  -->
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #0f1115; color: #e7e7ea; }
+    header { padding: 16px 20px; border-bottom: 1px solid #23262d; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    header h1 { font-size: 15px; margin: 0; font-weight: 600; color: #b9bdc7; }
+    .row { display: flex; gap: 8px; align-items: center; flex: 1 1 360px; }
+    input { flex: 1 1 auto; min-width: 220px; padding: 8px 10px; border-radius: 8px; border: 1px solid #2c2f37; background: #15171c; color: #e7e7ea; font-size: 13px; }
+    button { padding: 8px 14px; border-radius: 8px; border: 0; background: #ff2d55; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
+    main { display: flex; justify-content: center; padding: 32px 16px; }
+    .frame-wrap { width: 440px; max-width: 100%; }
+    iframe { width: 100%; height: 640px; border: 0; border-radius: 16px; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+    .hint { color: #6b7080; font-size: 12px; padding: 0 20px 8px; }
+    #log { font-family: ui-monospace, monospace; font-size: 12px; color: #8a90a0; padding: 8px 20px 24px; white-space: pre-wrap; word-break: break-all; }
+    #log b { color: #ff8aa0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tango (domain B)</h1>
+    <div class="row">
+      <input id="host" type="url" placeholder="https://&lt;rand&gt;.trycloudflare.com" />
+      <button id="load">Load widget</button>
+    </div>
+  </header>
+  <p class="hint">Cross-origin embed test: this page (domain&nbsp;B) frames the Zay onboarding widget served from domain&nbsp;A. Open the DevTools console to watch for X-Frame/CSP blocks and postMessage events.</p>
+  <main><div class="frame-wrap" id="wrap"></div></main>
+  <div id="log"></div>
+
+  <script>
+    var params = new URLSearchParams(location.search);
+    var hostInput = document.getElementById("host");
+    var wrap = document.getElementById("wrap");
+    var logEl = document.getElementById("log");
+
+    function log(msg) {
+      logEl.textContent += msg + "\n";
+    }
+
+    function mount(host) {
+      if (!host) { log("No host set — paste the domain-A tunnel URL above."); return; }
+      host = host.replace(/\/+$/, ""); // trim trailing slash
+      var src = host + "/tango/onboarding?merchant=tango&country=GE";
+      wrap.innerHTML = "";
+      var f = document.createElement("iframe");
+      f.title = "Zay onboarding";
+      f.src = src;
+      // Delegate camera/mic into the (nested) Persona KYC iframe, and clipboard for OTP paste.
+      f.setAttribute("allow", "camera; microphone; clipboard-write");
+      wrap.appendChild(f);
+      log("Mounted iframe → " + src);
+    }
+
+    document.getElementById("load").addEventListener("click", function () {
+      var h = hostInput.value.trim();
+      var u = new URL(location.href);
+      u.searchParams.set("host", h);
+      history.replaceState(null, "", u);
+      mount(h);
+    });
+
+    // Log any messages the widget posts to us (future iframe→parent contract).
+    window.addEventListener("message", function (e) {
+      log("message from " + e.origin + ": " + JSON.stringify(e.data));
+    });
+
+    var initial = params.get("host") || "";
+    hostInput.value = initial;
+    mount(initial);
+  </script>
+</body>
+</html>
